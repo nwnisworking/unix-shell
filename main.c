@@ -16,11 +16,16 @@ int main(){
 
     len = getInput(line);
 
-    for(int i = 0; i < len; i++){
-      printf("[%d]: %c (%d)\n", i + 1, line[i], (int) line[i]);
+    if(strcmp(line, "exit") == 0) break;
+
+    int num_tokens = tokenise(line, tokens);
+
+    // Debug token output
+    for(int i = 0; i < num_tokens; i++){
+      printf("Token %d: %s\n", i + 1, tokens[i]);
     }
 
-    if(strcmp(line, "exit") == 0) break;
+
   }
 
   return 0;
