@@ -25,6 +25,11 @@
  */
 int tokenise(char* input, char* tokens[]);
 
+/**
+ * Clear the tokens array, freeing any dynamically allocated memory.
+ * 
+ * @param tokens The array of tokens to be cleared.
+ */
 void clearTokens(char* tokens[]);
 
 #endif // TOKENS_H
