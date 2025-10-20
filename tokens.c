@@ -16,6 +16,8 @@ int tokenise(char* input, char* tokens[]){
       case PIPE_SEP :
       case CONCURRENT_SEP :
       case SEQUENCE_SEP :
+      case REDIRECT_IN :
+      case REDIRECT_OUT :
         char sep = *ptr;
 
         if(is_token){
