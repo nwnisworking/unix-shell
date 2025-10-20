@@ -35,6 +35,13 @@ int separateCommands(char* tokens[], Command commands[]){
     }
   }
   
+  if(tokens[last][0] == PIPE_SEP) return -4;
+
+  for(i = 0; i < c; i++){
+    searchRedirections(tokens, &commands[i]);
+    buildArgvArray(tokens, &commands[i]);
+  }
+
   return c;
 }
 
@@ -54,4 +61,68 @@ int isSeparator(char* token){
   }
 
   return 0;
+}
+
+void searchRedirections(char* tokens[], Command* command){
+  for(int i = command->first; i <= command->last; i++){
+    char* token = tokens[i];
+    
+    if(token[0] == REDIRECT_IN){
+      if(tokens[i + 1] != NULL)
+        command->stdin_file = tokens[i + 1];
+
+      i++;
+    }
+    else if(token[0] == REDIRECT_OUT){
+      if(tokens[i + 1] != NULL)
+        command->stdout_file = tokens[i + 1];
+
+      i++;
+    }
+  }
+}
+
+void buildArgvArray(char* tokens[], Command* command){
+  int n = (command->last - command->first + 1) - 
+  (command->stdin_file ? 2 : 0) - 
+  (command->stdout_file ? 2 : 0) + 
+  1;
+
+  command->argv = (char**) realloc(command->argv, n * sizeof(char*));
+
+  if(command->argv == NULL){
+    fprintf(stderr, "Memory allocation failed\n");
+    exit(1);
+  }
+
+  int k = 0;
+
+  for(int i = command->first; i <= command->last; i++){
+    char* token = tokens[i];
+
+    if(token[0] == REDIRECT_IN || token[0] == REDIRECT_OUT){
+      i++;
+    }
+    else{
+      command->argv[k] = tokens[i];
+      k++;
+    }
+  }
+
+  command->argv[k] = NULL;
+}
+
+void clearCommands(Command commands[]){
+  for(int i = 0; i < MAX_NUM_COMMANDS; i++){
+    commands[i].first = 0;
+    commands[i].last = 0;
+    commands[i].sep = NULL;
+    commands[i].stdin_file = NULL;
+    commands[i].stdout_file = NULL;
+
+    if(commands[i].argv != NULL){
+      free(commands[i].argv);
+      commands[i].argv = NULL;
+    }
+  }
 }

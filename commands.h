@@ -32,4 +32,27 @@ int separateCommands(char* tokens[], Command commands[]);
  */
 int isSeparator(char* token);
 
+/**
+ * Searches for input and output redirections in the command tokens.
+ * 
+ * @param tokens An array of token strings.
+ * @param command A pointer to the Command structure to update with redirection info.
+ */
+void searchRedirections(char* tokens[], Command* command);
+
+/**
+ * Builds the argv array for a command from its tokens.
+ * 
+ * @param tokens An array of token strings.
+ * @param command A pointer to the Command structure to build argv for.
+ */
+void buildArgvArray(char* tokens[], Command* command);
+
+/**
+ * Clears the command structures in the provided array.
+ * 
+ * @param commands An array of Command structures to clear.
+ */
+void clearCommands(Command commands[]);
+
 #endif // COMMANDS_H
