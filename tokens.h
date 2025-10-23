@@ -7,6 +7,9 @@
 
 #define MAX_TOKENS 100
 
+#define SINGLE_QUOTE '\''
+#define DOUBLE_QUOTE '\"'
+#define ESCAPE_CHAR '\\'
 #define PIPE_SEP '|'
 #define CONCURRENT_SEP '&'
 #define SEQUENCE_SEP ';'

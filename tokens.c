@@ -29,6 +29,38 @@ int tokenise(char* input, char* tokens[]){
         
         if(count >= MAX_TOKENS) return -1;
       break;
+      case ESCAPE_CHAR :
+        if(*(ptr + 1) != '\0'){
+          ptr++;
+        }
+      break;
+      case SINGLE_QUOTE :
+      case DOUBLE_QUOTE :
+        char quote = *ptr;
+        char* quote_start = ptr + 1;
+        *ptr = '\0';
+        *ptr++;
+
+        while(*ptr != '\0' && *ptr != quote){
+          if(*ptr == ESCAPE_CHAR){
+            *ptr++;
+          }
+
+          *ptr++;
+        }
+
+        if(*ptr == quote){
+          *ptr = '\0';
+
+          if(!is_token){
+            if(count >= MAX_TOKENS) return -1;
+            tokens[count++] = quote_start;
+            is_token = 1;
+          }
+        }
+        else{
+          ptr = quote_start;
+        }
       default : 
         if(!is_token){
           if(count >= MAX_TOKENS) return -1;
