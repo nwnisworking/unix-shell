@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <unistd.h>
+#include <glob.h>
 #include "utils.h"
 #include "tokens.h"
 #include "commands.h"
@@ -77,6 +78,18 @@ int main(){
           if(chdir(cmd.argv[1]) != 0){
             printf("cd: no such file or directory\n");
           }
+        }
+      }
+      else if(strcmp(cmd.argv[0], "ls") == 0){
+        glob_t results;
+
+        if(glob(cmd.argv[1] != NULL ? cmd.argv[1] : "*", 0, NULL, &results) == 0){
+          for(int i = 0; i < results.gl_pathc; i++){
+            printf("%s ", results.gl_pathv[i]);
+          }
+
+          printf("\n");
+          globfree(&results);
         }
       }
     }
