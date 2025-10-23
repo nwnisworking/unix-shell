@@ -75,7 +75,7 @@ int main(){
       else if(strcmp(cmd.argv[0], "cd") == 0){
         if(cmd.argv[1] != NULL){
           if(chdir(cmd.argv[1]) != 0){
-            printf("cd: no such file or directory: %s\n", cmd.argv[1]);
+            printf("cd: no such file or directory\n");
           }
         }
       }
