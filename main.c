@@ -4,16 +4,17 @@
 #include "utils.h"
 #include "tokens.h"
 #include "commands.h"
+#include "builtins.h"
 
 #define MAX_LINE_LENGTH 1024
 
 int main(){
-  char line[MAX_LINE_LENGTH];
-  char* tokens[MAX_TOKENS] = {0};
-  Command commands[MAX_NUM_COMMANDS] = {0};
-  size_t len;
+  char line[MAX_LINE_LENGTH]; // Buffer to hold input
+  char* tokens[MAX_TOKENS] = {0}; // Array to hold tokenised input
+  Command commands[MAX_NUM_COMMANDS] = {0}; // Array to hold separated commands
+  size_t len; // Length of the current input line
 
-  char prompt[MAX_LINE_LENGTH] = "%";
+  char prompt[MAX_LINE_LENGTH] = "%"; // Default shell prompt
 
   while(1){
     // Clean up tokens and commands from previous iteration
@@ -54,43 +55,66 @@ int main(){
 
     for(int i = 0; i < num_commands; i++){
       Command cmd = commands[i];
+      // pid_t pid;
+
+      // if(cmd.sep == CONCURRENT_SEP){
+      //   pid = fork();
+      // }
 
       if(strcmp(cmd.argv[0], "exit") == 0){
         return 0;
       }
       else if(strcmp(cmd.argv[0], "prompt") == 0){
-        if(cmd.argv[1] != NULL){
-          strncpy(prompt, cmd.argv[1], strlen(cmd.argv[1]) + 1);
-        }
-        else{
-          strncpy(prompt, "%", 2);
-        }
+        builtinPrompt(prompt, cmd.argv[1]);
       }
       else if(strcmp(cmd.argv[0], "pwd") == 0){
-        char dir[1024];
-
-        if(getcwd(dir, sizeof(dir)) != NULL){
-          printf("%s\n", dir);
-        }
+        builtinPwd();
       }
       else if(strcmp(cmd.argv[0], "cd") == 0){
-        if(cmd.argv[1] != NULL){
-          if(chdir(cmd.argv[1]) != 0){
-            printf("cd: no such file or directory\n");
-          }
-        }
+        builtinCD(cmd.argv[1]);
       }
       else if(strcmp(cmd.argv[0], "ls") == 0){
-        glob_t results;
+        // glob_t results;
+        // char *pattern = cmd.argv[1] != NULL ? cmd.argv[1] : "*";
 
-        if(glob(cmd.argv[1] != NULL ? cmd.argv[1] : "*", 0, NULL, &results) == 0){
-          for(int i = 0; i < results.gl_pathc; i++){
-            printf("%s ", results.gl_pathv[i]);
-          }
+        // if(glob(pattern, 0, NULL, &results) == 0){
+        //   int count = results.gl_pathc;
+        //   char** files = malloc((count + 2) * sizeof(char*));
 
-          printf("\n");
-          globfree(&results);
-        }
+        //   files[0] = strdup("ls");
+        //   files[count + 1] = NULL;
+
+        //   for(int j = 0; j < count; j++){
+        //     files[j + 1] = strdup(results.gl_pathv[j]);
+        //   }
+
+        //   globfree(&results);
+
+        //   pid_t pid = fork();
+
+        //   if(pid < 0){
+        //     printf("ls: fork failed\n");
+        //     continue;
+        //   }
+        //   else if(pid > 0){
+        //     // Parent process
+        //     int status;
+        //     waitpid(pid, &status, 0);
+            
+        //     for(int j = 0; j < count + 1; j++){
+        //       free(files[j]);
+        //     }
+            
+        //     free(files);
+        //     continue;
+        //   }
+        //   else{
+        //     if(execvp("ls", files) == -1){
+        //       _exit(1);
+        //     }
+        //   }
+
+        // }
       }
     }
   }
