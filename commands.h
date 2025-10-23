@@ -4,6 +4,8 @@
 #include <string.h>
 #include <stdio.h>
 
+#include "tokens.h"
+
 #define MAX_NUM_COMMANDS 1000
 
 typedef struct Command{

@@ -1,5 +1,4 @@
 #include "commands.h"
-#include "tokens.h"
 
 int separateCommands(char* tokens[], Command commands[]){
   int i = 0, tokens_size = 0;
