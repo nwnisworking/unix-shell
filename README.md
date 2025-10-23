@@ -1,5 +1,6 @@
 # unix-shell
 ICT374 assignment 2
+- [ ] Handle invalid commands / command error.
 - [ ] Minimum 100 commands
 - [ ] Minimum 1000 arguments in each command
 - [ ] Built-in prompt that can be reconfigured `% prompt john$` should change the shell prompt to john$
