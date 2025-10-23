@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <unistd.h>
 #include "utils.h"
 #include "tokens.h"
 #include "commands.h"
@@ -62,6 +63,13 @@ int main(){
         }
         else{
           strncpy(prompt, "%", 2);
+        }
+      }
+      else if(strcmp(cmd.argv[0], "pwd") == 0){
+        char dir[1024];
+
+        if(getcwd(dir, sizeof(dir)) != NULL){
+          printf("%s\n", dir);
         }
       }
     }
