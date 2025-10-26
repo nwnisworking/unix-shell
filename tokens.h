@@ -35,4 +35,12 @@ int tokenise(char* input, char* tokens[]);
  */
 void clearTokens(char* tokens[]);
 
+// tokens.h (additions/changes)
+#define MAX_TOKENS 4096  // was 100; raise to satisfy “≥1000 args”
+
+#define REDIRECT_IN  '<'
+#define REDIRECT_OUT '>'
+#define REDIRECT_ERR2 "2>"   // NEW: token string for stderr redirection
+
+
 #endif // TOKENS_H
