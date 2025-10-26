@@ -1,42 +1,59 @@
+/// commands.c
 #include "commands.h"
+#include <stdlib.h>
+
+#define REDIRECT_ERR2 "2>"
+
+static int is_redir_token(const char *t){
+  if (!t) return 0;
+  if ((strlen(t) == 1) && (t[0] == REDIRECT_IN || t[0] == REDIRECT_OUT)) return 1;
+  if (strcmp(t, REDIRECT_ERR2) == 0) return 1;
+  return 0;
+}
 
 int separateCommands(char* tokens[], Command commands[]){
   int i = 0, tokens_size = 0;
 
-  while(tokens[i] != NULL) i++;
+  while (tokens[i] != NULL) i++;
   tokens_size = i;
 
-  if(tokens_size == 0) return 0;
+  if (tokens_size == 0) return 0;
 
-  if(isSeparator(tokens[0])) return -3;
+  if (isSeparator(tokens[0])) return -3;
 
-  if(!isSeparator(tokens[tokens_size - 1])){
-    tokens[tokens_size] = strdup((char[]){SEQUENCE_SEP, '\0'});
+  // If last token is not a separator, append a ';' sentinel
+  if (!isSeparator(tokens[tokens_size - 1])) {
+    tokens[tokens_size] = strdup((char[]){ SEQUENCE_SEP, '\0' });
     tokens_size++;
   }
 
-  int first = 0, last, c = 0;
-  char* sep;
+  int first = 0, last = 0, c = 0;
 
-  for(i = 0; i < tokens_size; i++){
+  for (i = 0; i < tokens_size; i++) {
     last = i;
 
-    if(isSeparator(tokens[i])){
-      sep = tokens[i];
+    if (isSeparator(tokens[i])) {
+      char* sep = tokens[i];
 
-      if(first == last) return -2;
+      if (first == last) return -2; // empty command (two seps in a row)
+
       commands[c].first = first;
-      commands[c].last = last - 1;
-      commands[c].sep = sep;
+      commands[c].last  = last - 1;
+      commands[c].sep   = sep;
+      commands[c].argv  = NULL;
+      commands[c].stdin_file  = NULL;
+      commands[c].stdout_file = NULL;
+      commands[c].stderr_file = NULL;
       c++;
 
       first = i + 1;
     }
   }
-  
-  if(tokens[last][0] == PIPE_SEP) return -4;
 
-  for(i = 0; i < c; i++){
+  if (tokens[last][0] == PIPE_SEP) return -4; // line ends with a pipe
+
+  // discover redirections and build argv for each command
+  for (i = 0; i < c; i++) {
     searchRedirections(tokens, &commands[i]);
     buildArgvArray(tokens, &commands[i]);
   }
@@ -45,81 +62,93 @@ int separateCommands(char* tokens[], Command commands[]){
 }
 
 int isSeparator(char* token){
-  if(token == NULL || strlen(token) > 1) return 0;
+  if (token == NULL) return 0;
+  size_t L = strlen(token);
 
-  int i = 0;
-
-  char separators[] = {PIPE_SEP, CONCURRENT_SEP, SEQUENCE_SEP, '\0'};
-
-  while(separators[i] != '\0'){
-    if(separators[i] == token[0]){
-      return 1;
+  // single-char separators only
+  if (L == 1) {
+    char separators[] = { PIPE_SEP, CONCURRENT_SEP, SEQUENCE_SEP, '\0' };
+    for (int i = 0; separators[i] != '\0'; i++) {
+      if (separators[i] == token[0]) return 1;
     }
-
-    i++;
   }
 
+  // note: "2>" is NOT a command separator — it is a redirection operator
   return 0;
 }
 
 void searchRedirections(char* tokens[], Command* command){
-  for(int i = command->first; i <= command->last; i++){
+  for (int i = command->first; i <= command->last; i++) {
     char* token = tokens[i];
-    
-    if(token[0] == REDIRECT_IN){
-      if(tokens[i + 1] != NULL)
+
+    if (!token) continue;
+
+    if (token[0] == REDIRECT_IN && token[1] == '\0') {
+      if (i + 1 <= command->last && tokens[i + 1] != NULL) {
         command->stdin_file = tokens[i + 1];
-
-      i++;
+        i++;
+      }
     }
-    else if(token[0] == REDIRECT_OUT){
-      if(tokens[i + 1] != NULL)
+    else if (token[0] == REDIRECT_OUT && token[1] == '\0') {
+      if (i + 1 <= command->last && tokens[i + 1] != NULL) {
         command->stdout_file = tokens[i + 1];
-
-      i++;
+        i++;
+      }
+    }
+    else if (strcmp(token, REDIRECT_ERR2) == 0) {
+      if (i + 1 <= command->last && tokens[i + 1] != NULL) {
+        command->stderr_file = tokens[i + 1];
+        i++;
+      }
     }
   }
 }
 
 void buildArgvArray(char* tokens[], Command* command){
-  int n = (command->last - command->first + 1) - 
-  (command->stdin_file ? 2 : 0) - 
-  (command->stdout_file ? 2 : 0) + 
-  1;
+  // compute number of argv elements = span length - redir pairs + 1 for NULL
+  int pairs =
+    (command->stdin_file  ? 1 : 0) +
+    (command->stdout_file ? 1 : 0) +
+    (command->stderr_file ? 1 : 0);
+
+  int span = (command->last - command->first + 1);
+  int n = span - (pairs * 2) + 1; // +1 for terminating NULL
+
+  if (n < 1) n = 1; // guard
 
   command->argv = (char**) realloc(command->argv, n * sizeof(char*));
-
-  if(command->argv == NULL){
+  if (command->argv == NULL) {
     fprintf(stderr, "Memory allocation failed\n");
     exit(1);
   }
 
   int k = 0;
 
-  for(int i = command->first; i <= command->last; i++){
+  for (int i = command->first; i <= command->last; i++) {
     char* token = tokens[i];
 
-    if(token[0] == REDIRECT_IN || token[0] == REDIRECT_OUT){
+    if (is_redir_token(token)) {
+      // skip the filename after the redirection operator
       i++;
+      continue;
     }
-    else{
-      command->argv[k] = tokens[i];
-      k++;
-    }
+
+    command->argv[k++] = tokens[i];
   }
 
   command->argv[k] = NULL;
 }
 
 void clearCommands(Command commands[]){
-  for(int i = 0; i < MAX_NUM_COMMANDS; i++){
+  for (int i = 0; i < MAX_NUM_COMMANDS; i++) {
     commands[i].first = 0;
     commands[i].last = 0;
     commands[i].sep = NULL;
     commands[i].stdin_file = NULL;
     commands[i].stdout_file = NULL;
+    commands[i].stderr_file = NULL;
 
-    if(commands[i].argv != NULL){
+    if (commands[i].argv != NULL) {
       free(commands[i].argv);
       commands[i].argv = NULL;
     }
