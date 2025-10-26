@@ -1,3 +1,4 @@
+/// commands.h
 #ifndef COMMANDS_H
 #define COMMANDS_H
 
@@ -9,12 +10,13 @@
 #define MAX_NUM_COMMANDS 1000
 
 typedef struct Command{
-  int first;
-  int last;
+  int   first;
+  int   last;
   char* sep;
   char** argv;
   char* stdin_file;
   char* stdout_file;
+  char* stderr_file;   // NEW: support for "2>" redirection
 } Command;
 
 /**
@@ -36,14 +38,15 @@ int isSeparator(char* token);
 
 /**
  * Searches for input and output redirections in the command tokens.
+ * Also detects "2>" stderr redirection.
  * 
  * @param tokens An array of token strings.
- * @param command A pointer to the Command structure to update with redirection info.
+ * @param command A pointer to the Command structure to update.
  */
 void searchRedirections(char* tokens[], Command* command);
 
 /**
- * Builds the argv array for a command from its tokens.
+ * Builds the argv array for a command from its tokens, skipping redirection pairs.
  * 
  * @param tokens An array of token strings.
  * @param command A pointer to the Command structure to build argv for.
