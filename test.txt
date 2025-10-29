@@ -1,1 +1,119 @@
-hello
+% pwd
+/root/unix-shell
+% prompt test$
+test$ pwd
+/root/unix-shell
+test$ cd ..
+test$ pwd
+/root
+test$ cd unix-shell
+test$ pwd
+/root/unix-shell
+test$ exit
+root@5aea015b29b2:~/unix-shell# ./unix-shell
+% abcdefgh
+abcdefgh: No such file or directory
+% cd doesnotexist
+cd: no such file or directory
+% echo first ; echo second
+first
+second
+% sleep 3 & echo done
+done
+% ps -elf | grep unix-shell
+0 S root     32923  6851  0  80   0 -   674 do_wai 16:12 pts/1    00:00:00 ./unix-shell
+0 S root     33517 32923  0  80   0 -   882 pipe_r 16:13 pts/1    00:00:00 grep unix-shell
+% echo Hello > out.txt
+% cat < out.txt
+Hello
+% ls /nope 2> err.txt
+% cat err.txt
+ls: cannot access '/nope': No such file or directory
+% ls -lt | head -3
+total 280
+-rw-r--r-- 1 root root    53 Oct 29 16:13 err.txt
+-rw-r--r-- 1 root root     6 Oct 29 16:13 out.txt
+% echo "test" | more
+test
+% echo *.c
+builtins.c main.c tokens.c history.c utils.c commands.c
+% echo ?.h
+?.h
+% history
+1  abcdefgh
+
+2  cd doesnotexist
+
+3  echo first ; echo second
+
+4  sleep 3 & echo done
+
+5  ps -elf | grep unix-shell
+
+6  echo Hello > out.txt
+
+7  cat < out.txt
+
+8  ls /nope 2> err.txt
+
+9  cat err.txt
+
+10  ls -lt | head -3
+
+11  echo "test" | more
+
+12  echo *.c
+
+13  echo ?.h
+
+14  history
+
+% !!
+1  abcdefgh
+
+2  cd doesnotexist
+
+3  echo first ; echo second
+
+4  sleep 3 & echo done
+
+5  ps -elf | grep unix-shell
+
+6  echo Hello > out.txt
+
+7  cat < out.txt
+
+8  ls /nope 2> err.txt
+
+9  cat err.txt
+
+10  ls -lt | head -3
+
+11  echo "test" | more
+
+12  echo *.c
+
+13  echo ?.h
+
+14  history
+
+15  history
+
+% !p
+0 S root     32923  6851  0  80   0 -   674 do_wai 16:12 pts/1    00:00:00 ./unix-shell
+0 S root     34749 32923  0  80   0 -   882 pipe_r 16:15 pts/1    00:00:00 grep unix-shell
+% ^C^Z
+% sleep 5 &
+% echo first > a.txt ; cat < a.txt | grep f ; ls *.c | head -3 & echo Done
+first
+Done
+% builtins.c
+commands.c
+history.c
+echo $HOME
+$HOME
+% env | grep PATH
+PATH=/root/.vscode-server/bin/18e3a1ec544e6907be1e944a94c496e302073435/bin/remote-cli:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+% echo $HOME
+$HOME
+% 
