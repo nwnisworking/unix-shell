@@ -1,24 +1,25 @@
 #include "history.h"
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <ctype.h>
 
 static char *hist[HIST_MAX];
 static int hcount=0;
-static int cursor=0; // for arrow browsing
+static int cursor=0;
 
 void history_add(const char *line){
     if(!line || !*line) return;
     int idx = hcount % HIST_MAX;
     free(hist[idx]); hist[idx]=strdup(line);
     hcount++;
-    cursor = hcount; // reset browsing to "after last"
+    cursor = hcount;
 }
 
 void history_print(int last_n){
     int start = (hcount>last_n? hcount-last_n : 0);
     for(int i=start;i<hcount;i++){
-        fprintf(stdout, "%d  %s", i+1, hist[i%HIST_MAX]); // assume line has '\n'
+        fprintf(stdout, "%d  %s\n", i+1, hist[i%HIST_MAX]);
     }
 }
 
@@ -32,28 +33,21 @@ static const char *find_prefix(const char *pre){
 }
 
 char *history_expand_bang(const char *line){
-    // Only expand if line starts with '!'
     if(!line || line[0] != '!') return NULL;
 
-    // "!!"
     if(strcmp(line,"!!")==0){
         if(hcount==0) return NULL;
         return strdup(hist[(hcount-1)%HIST_MAX]);
     }
-
-    // "!n"
     if(isdigit((unsigned char)line[1])){
         int n = atoi(line+1);
         if(n<=0 || n>hcount) return NULL;
         return strdup(hist[(n-1)%HIST_MAX]);
     }
-
-    // "!prefix"
     const char *s = find_prefix(line+1);
     return s ? strdup(s) : NULL;
 }
 
-// Arrow browsing
 const char *history_prev(void){
     if(hcount==0) return NULL;
     if(cursor<=0) cursor=0; else cursor--;
@@ -61,7 +55,7 @@ const char *history_prev(void){
 }
 const char *history_next(void){
     if(hcount==0) return NULL;
-    if(cursor < hcount) cursor++; // move towards "after last"
-    if(cursor==hcount) return ""; // empty current
+    if(cursor < hcount) cursor++;
+    if(cursor==hcount) return "";
     return hist[cursor%HIST_MAX];
 }
