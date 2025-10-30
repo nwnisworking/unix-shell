@@ -1,10 +1,7 @@
 #include <stdio.h>
 #include <unistd.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <sys/wait.h>
+
 #include <sys/types.h>
-#include <signal.h>
 #include <errno.h>
 #include <string.h>
 #include <fcntl.h>
@@ -21,29 +18,8 @@
 
 #define MAX_LINE_LENGTH 16384
 
-// ---------- SIGCHLD: reap zombies ----------
-static void sigchld_handler(int sig){
-  (void)sig;
-  for(;;){
-    int st; pid_t p = waitpid(-1, &st, WNOHANG);
-    if (p > 0) continue;
-    if (p == 0) break;
-    if (p < 0 && errno == EINTR) continue;
-    break;
-  }
-}
-static void install_signals(void){
-  struct sigaction sa = {0};
-  sa.sa_handler = sigchld_handler;
-  sigemptyset(&sa.sa_mask);
-  sa.sa_flags = SA_RESTART | SA_NOCLDSTOP;
-  sigaction(SIGCHLD, &sa, NULL);
-  // ignore job control signals in shell; children restore defaults
-  signal(SIGINT,  SIG_IGN);
-  signal(SIGQUIT, SIG_IGN);
-  signal(SIGTSTP, SIG_IGN);
-}
-
+// todo: Peter, I think this apply redirection can be moved to commands.c file.
+// Do it or I tear apart your balls.
 // ---------- Redirections ----------
 static int apply_redirs(const Command *c){
   if (c->stdin_file){
@@ -187,21 +163,96 @@ static int run_builtin_in_parent(char prompt[], Command *c){
   return 0;
 }
 
+static void cleanup(){
+  termiosMode(0);
+  fflush(stdout);
+}
+
 int main(){
   char line[MAX_LINE_LENGTH];
   char *tokens[MAX_TOKENS]={0};
   Command commands[MAX_NUM_COMMANDS]={0};
   char prompt[64]="%";
+  int skip_prompt = 0;
 
-  install_signals();
+  termiosMode(1);
+  installSignalHandlers();
+  atexit(cleanup);
 
-  for(;;){
-    printf("%s ", prompt);
-fflush(stdout);
-if(!fgets(line, sizeof(line), stdin)) break;
-getInput(line); // remove newline
+  while(1){
+    // Reset everything for the next commands
+    clearTokens(tokens); 
+    clearCommands(commands);
 
-    // bang expansion
+    // Skip prompt ignores the prompt display once. 
+    // This is made to prevent a double prompt from appearing. 
+    // Whenever we navigate the history, we already have a prompt displayed.
+    if(skip_prompt){
+      skip_prompt = 0;
+    }
+    else{
+      // Clear the line buffer for new input since it does not come from the history.
+      clearLine(line);
+
+      printf("%s ", prompt);
+      fflush(stdout);
+    }
+
+    // Allows navigation through history using up and down arrows.
+    int hist_nav = readLine(line);
+
+    if(hist_nav == -1){
+      const char *prev = history_prev();
+      
+      skip_prompt = 1;
+
+      if(prev){
+        // Make way for the previous command from history.
+        clearLine(line);
+        strncpy(line, prev, MAX_LINE_LENGTH - 1);
+
+        // todo: Peter, when you rewrite your history, can you make sure the last character is not a newline?
+        // Because I have to do this to prevent newlines in the middle of commands. If you done, please remove this line.
+        line[strcspn(line, "\n")] = '\0';
+
+        // Clear the line before displaying the new command.
+        printf(ANSI_CLEAR_LINE_CMD);
+        fflush(stdout);
+
+        // Display the previous command from history.
+        printf("\r%s %s", prompt, line);
+        fflush(stdout);
+      }
+
+      continue; 
+    }
+    else if(hist_nav == 1){
+      const char *next = history_next();
+      
+      skip_prompt = 1;
+
+      if(next){
+        // Make way for the next command from history.
+        clearLine(line);
+        strncpy(line, next, MAX_LINE_LENGTH-1);
+
+        // todo: Peter, this line too.
+        line[strcspn(line, "\n")] = '\0';
+
+        // Clear the line before displaying the new command.
+        printf(ANSI_CLEAR_LINE_CMD);
+        fflush(stdout);
+
+        // Display the next command from history.
+        printf("\r%s %s", prompt, line);
+        fflush(stdout);
+      }
+
+      continue;
+    }
+    
+    // todo: The code below does not belong to me. I don't know how I am going to fix this mess. 
+
     char *expanded = history_expand_bang(line);
     const char *use_line = expanded ? expanded : line;
 
@@ -216,7 +267,7 @@ getInput(line); // remove newline
       history_add(stored);
     }
 
-    clearTokens(tokens); clearCommands(commands);
+    
     if (tokenise((char*)use_line, tokens)<0) { free(expanded); continue; }
 
     int ncmds = separateCommands(tokens, commands);
@@ -236,6 +287,8 @@ getInput(line); // remove newline
     }
 
     free(expanded);
+
   }
+
   return 0;
 }
