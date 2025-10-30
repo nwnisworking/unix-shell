@@ -1,98 +1,163 @@
 #include "utils.h"
-#include "history.h"
-#include <termios.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <string.h>
-#include <errno.h>
-#include <ctype.h>   // isprint
 
-size_t getInput(char* buffer){
-  size_t len = strlen(buffer);
-  if(len > 0 && buffer[len - 1] == '\n'){
-    buffer[len - 1] = '\0';
-  }
-  return len;
-}
+static void childHandler(int sig);
 
-static struct termios orig;
+void termiosMode(int enabled){
+  // Create a static variable to hold the original terminal settings
+  static struct termios original = {0};
+  // This variable ensures that the original settings are saved once
+  static int is_initialized = 0;
 
-int enableRawMode(void){
-  if(!isatty(STDIN_FILENO)) return 0;
-  if(tcgetattr(STDIN_FILENO, &orig) == -1) return -1;
-  struct termios raw = orig;
-  raw.c_lflag &= ~(ICANON | ECHO);
-  raw.c_cc[VMIN]=1; raw.c_cc[VTIME]=0;
-  return tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
-}
-void disableRawMode(void){
-  if(isatty(STDIN_FILENO)) tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig);
-}
-
-static void redraw(const char *prompt, const char *buf, size_t cur){
-  printf("\r%s %s\033[K", prompt, buf);
-  printf("\r\033[%zuC", strlen(prompt)+1+cur);
-  fflush(stdout);
-}
-
-int readLine(char *out, size_t cap, const char *prompt){
-  if (!isatty(STDIN_FILENO)) {
-    fputs(prompt, stdout); fflush(stdout);
-    return fgets(out, cap, stdin)!=NULL;
+  if(!is_initialized){
+    tcgetattr(STDIN_FILENO, &original);
+    is_initialized = 1;
   }
 
-  if (enableRawMode()<0) return 0;
-  size_t len=0; size_t cur=0;
-  out[0]='\0';
+  if(enabled){
+    // Create a new termios structure based on the original settings
+    struct termios new_termios = original;
 
-  fputs(prompt, stdout); fputc(' ', stdout); fflush(stdout);
+    new_termios.c_lflag &= ~(ICANON | ECHO); 
+    new_termios.c_cc[VMIN] = 1;
+    new_termios.c_cc[VTIME] = 0;
+
+    tcsetattr(STDIN_FILENO, TCSANOW, &new_termios);
+  }
+  else{
+    tcsetattr(STDIN_FILENO, TCSANOW, &original);
+  }
+}
+
+int readLine(char* line){
+  // Flag to indicate if newline is encountered
+  int is_newline = 0;
+  // The current index of the ANSI cursor position
+  int index = strlen(line);
+  // The total number of characters in the line
+  int char_count = strlen(line);
+
+  while(!is_newline){
+    // Holds the input characters + special characters
+    char ch[4] = {0};
+    // Read the input from the terminal
+    int bytes_read = read(STDIN_FILENO, ch, sizeof(ch));
+
+    if(strcmp(ch, ANSI_NEWLINE_KEY) == 0){
+      // Set the newline flag to true and break out of the loop
+      is_newline = 1;
+
+      printf("\n");
+      fflush(stdout);
+    }
+    else if(strcmp(ch, ANSI_BACKSPACE_KEY) == 0){
+      // This prevents the cursor from shifting left when at the start of the line.
+      if(index > 0){
+        index--;
+
+        // Shift characters to the left to remove the character at the current index
+        for(int i = index; i < char_count; i++)
+          line[i] = line[i + 1];
+
+        // Null-terminate the string and decrease the character count
+        line[char_count] = '\0';
+        char_count--;
+
+        printf("%s%s", ANSI_LEFT_KEY, ANSI_DELETE_CMD);
+        fflush(stdout);
+      }
+    }
+    else if(strcmp(ch, ANSI_DELETE_KEY) == 0){
+      // Prevent deletion if at the end of the line
+      if(line[index] != '\0'){
+        // Shift characters to the left to remove the character at the current index
+        for(int i = index; i < char_count; i++)
+          line[i] = line[i + 1];
+
+        // Null-terminate the string and decrease the character count
+        line[char_count] = '\0';
+        char_count--;
+
+        printf(ANSI_DELETE_CMD);
+        fflush(stdout);
+      }
+    }
+    else if(strcmp(ch, ANSI_LEFT_KEY) == 0){
+
+      // Move cursor left if not at the start of the line
+      if(index > 0){
+        index--;
+
+        printf(ANSI_LEFT_KEY);
+        fflush(stdout);
+      }
+    }
+    else if(strcmp(ch, ANSI_RIGHT_KEY) == 0){
+      // Move cursor right if not at the end of the line
+      if(line[index] != '\0'){
+        index++;
+
+        printf(ANSI_RIGHT_KEY);
+        fflush(stdout);
+      }
+    }
+    else if(strcmp(ch, ANSI_UP_KEY) == 0){
+      return -1;
+    }
+    else if(strcmp(ch, ANSI_DOWN_KEY) == 0){
+      return 1;
+    }
+    else{
+      // Skip bytes that do not represent printable characters 
+      if(bytes_read > 1) continue;
+
+      char c = ch[0];
+
+      // Shift characters to the right to make space for the new character
+      for(int i = char_count; i >= index; i--)
+        line[i + 1] = line[i];
+
+      // Insert the new character at the current index and update counters
+      line[index++] = c;
+      char_count++;
+
+      printf("%s%c", ANSI_INSERT_CMD, c);
+      fflush(stdout);
+    }
+  }
+
+  return 0;
+}
+
+void clearLine(char* line){
+  for(int i = 0; line[i] != '\0'; i++)
+    line[i] = '\0';
+}
+
+void installSignalHandlers(){
+  struct sigaction sa = {0};
+  sa.sa_handler = childHandler;
+
+  sigemptyset(&sa.sa_mask);
+  sa.sa_flags = SA_RESTART | SA_NOCLDSTOP;
+  sigaction(SIGCHLD, &sa, NULL);
+
+  // ignore job control signals in shell; children restore defaults
+  sa.sa_handler = SIG_IGN;
+  sigaction(SIGINT, &sa, NULL);
+  sigaction(SIGQUIT, &sa, NULL);
+  sigaction(SIGTSTP, &sa, NULL);
+}
+
+static void childHandler(int sig){
+  (void)sig;
 
   for(;;){
-    unsigned char c;
-    if(read(STDIN_FILENO, &c, 1)!=1){ disableRawMode(); return 0; }
-
-    if(c=='\r' || c=='\n'){
-      putchar('\n'); out[len]='\0';
-      disableRawMode(); return 1;
-    }
-    else if(c==127 || c==8){ // backspace
-      if(cur>0){
-        memmove(out+cur-1, out+cur, len-cur);
-        cur--; len--;
-        redraw(prompt, out, cur);
-      }
-    }
-    else if(c==27){ // escape seq
-      unsigned char seq[2];
-      if(read(STDIN_FILENO, seq, 2)!=2) continue;
-      if(seq[0]=='['){
-        if(seq[1]=='D'){ // left
-          if(cur>0){ cur--; printf("\033[1D"); fflush(stdout); }
-        } else if(seq[1]=='C'){ // right
-          if(cur<len){ cur++; printf("\033[1C"); fflush(stdout); }
-        } else if(seq[1]=='A'){ // up
-          const char *h = history_prev();
-          if(h){
-            len = cur = strnlen(h, cap-1);
-            strncpy(out, h, cap-1); out[len]='\0';
-            redraw(prompt, out, cur);
-          }
-        } else if(seq[1]=='B'){ // down
-          const char *h = history_next();
-          if(h){
-            len = cur = strnlen(h, cap-1);
-            strncpy(out, h, cap-1); out[len]='\0';
-            redraw(prompt, out, cur);
-          }
-        }
-      }
-    }
-    else if(isprint(c)){
-      if(len+1 < cap){
-        memmove(out+cur+1, out+cur, len-cur);
-        out[cur]=c; len++; cur++;
-        redraw(prompt, out, cur);
-      }
-    }
+    int st; 
+    pid_t p = waitpid(-1, &st, WNOHANG);
+    
+    if(p > 0) continue;
+    if(p == 0) break;
+    if(p < 0 && errno == EINTR) continue;
+    break;
   }
 }
