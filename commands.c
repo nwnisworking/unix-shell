@@ -1,8 +1,49 @@
 #include "commands.h"
 #include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
 
 #define REDIRECT_ERR2 "2>"
 
+// -----------------------
+// Quote/escape normalisers
+// -----------------------
+static void unescape_in_place(char *s){
+    if(!s) return;
+    size_t r = 0, w = 0;
+    while(s[r]){
+        if(s[r] == '\\' && s[r+1] != '\0'){
+            r++;               // skip backslash
+            s[w++] = s[r++];   // copy the next char verbatim
+        } else {
+            s[w++] = s[r++];
+        }
+    }
+    s[w] = '\0';
+}
+
+static void strip_surrounding_quotes(char *s){
+    if(!s) return;
+    size_t n = strlen(s);
+    if(n >= 2){
+        char a = s[0], b = s[n-1];
+        if((a == '\'' && b == '\'') || (a == '"' && b == '"')){
+            // remove the first and last quote, in place
+            memmove(s, s+1, n-2);
+            s[n-2] = '\0';
+        }
+    }
+}
+
+static void normalise_token(char *s){
+    // Order matters: strip outer quotes first, then unescape inside
+    strip_surrounding_quotes(s);
+    unescape_in_place(s);
+}
+
+// -----------------------
+// Helpers
+// -----------------------
 static int is_redir_token(const char *t){
     if(!t) return 0;
     if((strlen(t) == 1) && (t[0] == REDIRECT_IN || t[0] == REDIRECT_OUT)) return 1;
@@ -10,6 +51,9 @@ static int is_redir_token(const char *t){
     return 0;
 }
 
+// -----------------------
+// Public API
+// -----------------------
 int separateCommands(char* tokens[], Command commands[]){
     int i = 0, tokens_size = 0;
     while(tokens[i] != NULL) i++;
@@ -47,7 +91,7 @@ int separateCommands(char* tokens[], Command commands[]){
 
     if(tokens[last][0] == PIPE_SEP) return -4; // ends with pipe
 
-    // Finalize each command
+    // Finalise each command
     for(i = 0; i < c; i++){
         searchRedirections(tokens, &commands[i]);
         buildArgvArray(tokens, &commands[i]);
@@ -75,6 +119,7 @@ void searchRedirections(char* tokens[], Command* command){
         // Handle input redirection
         if(token[0] == REDIRECT_IN && token[1] == '\0'){
             if(i + 1 <= command->last && tokens[i + 1] != NULL){
+                normalise_token(tokens[i + 1]);          // NEW: normalise filename
                 command->stdin_file = tokens[i + 1];
                 i++;
             }
@@ -82,13 +127,15 @@ void searchRedirections(char* tokens[], Command* command){
         // Handle output redirection
         else if(token[0] == REDIRECT_OUT && token[1] == '\0'){
             if(i + 1 <= command->last && tokens[i + 1] != NULL){
+                normalise_token(tokens[i + 1]);          // NEW: normalise filename
                 command->stdout_file = tokens[i + 1];
                 i++;
             }
         }
-        // Handle stderr redirection
+        // Handle stderr redirection (2>)
         else if(strcmp(token, REDIRECT_ERR2) == 0){
             if(i + 1 <= command->last && tokens[i + 1] != NULL){
+                normalise_token(tokens[i + 1]);          // NEW: normalise filename
                 command->stderr_file = tokens[i + 1];
                 i++;
             }
@@ -116,8 +163,20 @@ void buildArgvArray(char* tokens[], Command* command){
     int k = 0;
     for(int i = command->first; i <= command->last; i++){
         char* token = tokens[i];
-        if(is_redir_token(token)){ i++; continue; } // skip redirection target
-        command->argv[k++] = tokens[i];
+        if(!token) continue;
+
+        // skip redirection operator + filename
+        if(is_redir_token(token)){
+            i++; // skip its target filename
+            continue;
+        }
+
+        command->argv[k] = tokens[i];
+
+        // NEW: normalise each argv token (handles echo "\" and friends)
+        normalise_token(command->argv[k]);
+
+        k++;
     }
     command->argv[k] = NULL;
 }
