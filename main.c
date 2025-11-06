@@ -116,9 +116,9 @@ static int run_pipeline(Command *cmds, int start, int end, int background){
 
       if(apply_redirs(&cmds[i])<0) _exit(1);
 
-      // wildcard expansion
-      char **argv = cmds[i].argv; int argc=0; while(argv[argc]) argc++;
-      expand_wildcards(&argv, &argc);
+     // wildcard expansion
+char **argv = cmds[i].argv;
+if (expand_wildcards(&argv) < 0) _exit(1);
 
       execvp(argv[0], argv);
       perror(argv[0]); _exit(127);
@@ -191,9 +191,6 @@ int main(){
         clearLine(line);
         strncpy(line, prev, MAX_LINE_LENGTH - 1);
 
-        // todo: Peter, when you rewrite your history, can you make sure the last character is not a newline?
-        // Because I have to do this to prevent newlines in the middle of commands. If you done, please remove this line.
-        line[strcspn(line, "\n")] = '\0';
 
         // Clear the line before displaying the new command.
         printf(ANSI_CLEAR_LINE_CMD);
@@ -215,9 +212,6 @@ int main(){
         // Make way for the next command from history.
         clearLine(line);
         strncpy(line, next, MAX_LINE_LENGTH-1);
-
-        // todo: Peter, this line too.
-        line[strcspn(line, "\n")] = '\0';
 
         // Clear the line before displaying the new command.
         printf(ANSI_CLEAR_LINE_CMD);

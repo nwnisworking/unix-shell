@@ -5,29 +5,38 @@
 #include <ctype.h>
 
 static char *hist[HIST_MAX];
-static int hcount=0;
-static int cursor=0;
+static int hcount = 0;
+static int cursor = 0;
+
+static char *dup_trim_nl(const char *s){
+    if(!s) return NULL;
+    size_t L = strlen(s);
+    if(L && s[L-1] == '\n') return strndup(s, L-1);
+    return strdup(s);
+}
 
 void historyAdd(const char *line){
     if(!line || !*line) return;
     int idx = hcount % HIST_MAX;
-    free(hist[idx]); hist[idx]=strdup(line); // store new line
+    free(hist[idx]);
+    hist[idx] = dup_trim_nl(line);   // store WITHOUT trailing '\n'
     hcount++;
-    cursor = hcount; // reset cursor to end
+    cursor = hcount;                 // reset cursor to end
 }
 
 void historyPrint(int last_n){
-    int start = (hcount>last_n? hcount-last_n : 0);
-    for(int i=start;i<hcount;i++){
-        fprintf(stdout, "%d  %s\n", i+1, hist[i%HIST_MAX]); // print entry
+    int start = (hcount > last_n ? hcount - last_n : 0);
+    for(int i = start; i < hcount; i++){
+        // entries are already newline-free; we add exactly one newline here
+        fprintf(stdout, "%d  %s\n", i + 1, hist[i % HIST_MAX]);
     }
 }
 
 static const char *findPrefix(const char *pre){
-    size_t L=strlen(pre);
-    for(int i=hcount-1;i>=0;i--){
-        const char *s=hist[i%HIST_MAX];
-        if(s && strncmp(s, pre, L)==0) return s; // match prefix
+    size_t L = strlen(pre);
+    for(int i = hcount - 1; i >= 0; i--){
+        const char *s = hist[i % HIST_MAX];
+        if(s && strncmp(s, pre, L) == 0) return s; // match prefix
     }
     return NULL;
 }
@@ -35,28 +44,28 @@ static const char *findPrefix(const char *pre){
 char *historyExpandBang(const char *line){
     if(!line || line[0] != '!') return NULL;
 
-    if(strcmp(line,"!!")==0){
-        if(hcount==0) return NULL;
-        return strdup(hist[(hcount-1)%HIST_MAX]); // repeat last
+    if(strcmp(line, "!!") == 0){
+        if(hcount == 0) return NULL;
+        return strdup(hist[(hcount - 1) % HIST_MAX]); // already trimmed
     }
     if(isdigit((unsigned char)line[1])){
-        int n = atoi(line+1);
-        if(n<=0 || n>hcount) return NULL;
-        return strdup(hist[(n-1)%HIST_MAX]); // expand by index
+        int n = atoi(line + 1);
+        if(n <= 0 || n > hcount) return NULL;
+        return strdup(hist[(n - 1) % HIST_MAX]);      // already trimmed
     }
-    const char *s = findPrefix(line+1);
-    return s ? strdup(s) : NULL; // expand by prefix
+    const char *s = findPrefix(line + 1);
+    return s ? strdup(s) : NULL;                      // already trimmed
 }
 
 const char *historyPrev(void){
-    if(hcount==0) return NULL;
-    if(cursor<=0) cursor=0; else cursor--;
-    return hist[cursor%HIST_MAX]; // move back
+    if(hcount == 0) return NULL;
+    if(cursor <= 0) cursor = 0; else cursor--;
+    return hist[cursor % HIST_MAX]; // newline-free
 }
 
 const char *historyNext(void){
-    if(hcount==0) return NULL;
+    if(hcount == 0) return NULL;
     if(cursor < hcount) cursor++;
-    if(cursor==hcount) return ""; // end reached
-    return hist[cursor%HIST_MAX]; // move forward
+    if(cursor == hcount) return ""; // at end -> empty recall
+    return hist[cursor % HIST_MAX]; // newline-free
 }
