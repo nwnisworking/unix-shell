@@ -18,8 +18,7 @@
 
 #define MAX_LINE_LENGTH 16384
 
-//Redirect
-apply_redirs(&cmds[i]);
+
 
 
 // ---------- Wildcards via fnmatch + readdir ----------
