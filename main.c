@@ -18,30 +18,9 @@
 
 #define MAX_LINE_LENGTH 16384
 
-// todo: Peter, I think this apply redirection can be moved to commands.c file.
-// Do it or I tear apart your balls.
-// ---------- Redirections ----------
-static int apply_redirs(const Command *c){
-  if (c->stdin_file){
-    int fd = open(c->stdin_file, O_RDONLY);
-    if(fd<0){ perror(c->stdin_file); return -1; }
-    if(dup2(fd, STDIN_FILENO)<0){ perror("dup2 in"); close(fd); return -1; }
-    close(fd);
-  }
-  if (c->stdout_file){
-    int fd = open(c->stdout_file, O_WRONLY|O_CREAT|O_TRUNC, 0666);
-    if(fd<0){ perror(c->stdout_file); return -1; }
-    if(dup2(fd, STDOUT_FILENO)<0){ perror("dup2 out"); close(fd); return -1; }
-    close(fd);
-  }
-  if (c->stderr_file){
-    int fd = open(c->stderr_file, O_WRONLY|O_CREAT|O_TRUNC, 0666);
-    if(fd<0){ perror(c->stderr_file); return -1; }
-    if(dup2(fd, STDERR_FILENO)<0){ perror("dup2 err"); close(fd); return -1; }
-    close(fd);
-  }
-  return 0;
-}
+//Redirect
+apply_redirs(&cmds[i]);
+
 
 // ---------- Wildcards via fnmatch + readdir ----------
 static int has_wild(const char *s){
@@ -92,28 +71,30 @@ static int expand_one_pattern(const char *pattern, char ***outv, int *outc){
   closedir(d);
   return added;
 }
-static int expand_wildcards(char ***argvp, int *argcp){
-  char **argv = *argvp; int argc = *argcp;
+static int expand_wildcards(char ***argvp){
+  char **argv = *argvp;
+  int argc = 0; while(argv[argc]) argc++;
+
   char **nargv = malloc(sizeof(char*) * (argc + 4096));
   if(!nargv) return -1;
-  int nargc = 0;
 
+  int nargc = 0;
   for(int i=0;i<argc;i++){
     const char *tok = argv[i];
     if(!tok || tok[0]=='-' || !has_wild(tok)){
       nargv[nargc++] = argv[i];
       continue;
     }
-    int before = nargc;
     int added = expand_one_pattern(tok, &nargv, &nargc);
     if(added == 0){
       nargv[nargc++] = argv[i]; // no matches -> keep literal
     }
   }
   nargv[nargc] = NULL;
-  *argvp = nargv; *argcp = nargc;
+  *argvp = nargv;
   return 0;
 }
+
 
 // ---------- Pipelines ----------
 static int run_pipeline(Command *cmds, int start, int end, int background){

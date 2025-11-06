@@ -88,4 +88,8 @@ void buildArgvArray(char* tokens[], Command* command);
  */
 void clearCommands(Command commands[]);
 
+// Redirect
+int apply_redirs(const Command *c);  // NEW – move from main.c
+
+
 #endif // COMMANDS_H

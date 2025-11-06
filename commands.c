@@ -2,6 +2,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
+
 
 #define REDIRECT_ERR2 "2>"
 
@@ -12,15 +16,21 @@ static void unescape_in_place(char *s){
     if(!s) return;
     size_t r = 0, w = 0;
     while(s[r]){
-        if(s[r] == '\\' && s[r+1] != '\0'){
-            r++;               // skip backslash
-            s[w++] = s[r++];   // copy the next char verbatim
+        if(s[r] == '\\'){
+            if(s[r+1] == '\\'){          // double backslash -> one
+                s[w++] = '\\'; r += 2;
+            } else if(s[r+1] != '\0'){   // \X -> X (remove only the backslash)
+                s[w++] = s[r+1]; r += 2;
+            } else {                     // lone backslash at end
+                s[w++] = '\\'; r++;
+            }
         } else {
             s[w++] = s[r++];
         }
     }
     s[w] = '\0';
 }
+
 
 static void strip_surrounding_quotes(char *s){
     if(!s) return;
@@ -197,3 +207,27 @@ void clearCommands(Command commands[]){
         }
     }
 }
+
+// Redirect
+int apply_redirs(const Command *c){
+  if (c->stdin_file){
+    int fd = open(c->stdin_file, O_RDONLY);
+    if(fd<0){ perror(c->stdin_file); return -1; }
+    if(dup2(fd, STDIN_FILENO)<0){ perror("dup2 in"); close(fd); return -1; }
+    close(fd);
+  }
+  if (c->stdout_file){
+    int fd = open(c->stdout_file, O_WRONLY|O_CREAT|O_TRUNC, 0666);
+    if(fd<0){ perror(c->stdout_file); return -1; }
+    if(dup2(fd, STDOUT_FILENO)<0){ perror("dup2 out"); close(fd); return -1; }
+    close(fd);
+  }
+  if (c->stderr_file){
+    int fd = open(c->stderr_file, O_WRONLY|O_CREAT|O_TRUNC, 0666);
+    if(fd<0){ perror(c->stderr_file); return -1; }
+    if(dup2(fd, STDERR_FILENO)<0){ perror("dup2 err"); close(fd); return -1; }
+    close(fd);
+  }
+  return 0;
+}
+
