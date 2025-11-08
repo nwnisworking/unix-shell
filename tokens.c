@@ -1,9 +1,4 @@
-/// tokens.c
 #include "tokens.h"
-#include <string.h>
-#include <stdlib.h>
-
-#define REDIRECT_ERR2 "2>"    // ensure consistency with header
 
 int tokenise(char* input, char* tokens[]){
     int count = 0;
