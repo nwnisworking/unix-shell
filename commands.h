@@ -13,6 +13,9 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <fcntl.h>
+#include <unistd.h>
+
 #include "tokens.h"
 
 /// Maximum number of commands supported in a single input line
@@ -88,8 +91,15 @@ void buildArgvArray(char* tokens[], Command* command);
  */
 void clearCommands(Command commands[]);
 
-// Redirect
-int apply_redirs(const Command *c);  // NEW – move from main.c
-
+/**
+ * @brief Applies I/O redirections for a command.
+ * 
+ * Opens the specified files and redirects stdin, stdout, and stderr
+ * as indicated in the Command struct.
+ * 
+ * @param c Pointer to the Command struct with redirection info.
+ * @return 0 on success, -1 on failure.
+ */
+int applyRedirs(const Command *c);
 
 #endif // COMMANDS_H
