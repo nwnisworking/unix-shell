@@ -1,8 +1,6 @@
 #ifndef ANSI_H
 #define ANSI_H
 
-#include <stdio.h>
-
 #define ANSI_ESCAPE_KEY "\x1b"
 #define ANSI_LEFT_KEY "\x1b[D"
 #define ANSI_RIGHT_KEY "\x1b[C"
