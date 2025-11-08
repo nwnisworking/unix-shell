@@ -1,17 +1,14 @@
 #include "history.h"
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <ctype.h>
 
 static char *hist[HIST_MAX];
 static int hcount = 0;
 static int cursor = 0;
 
-static char *dup_trim_nl(const char *s){
+static char *dupTrimNl(const char *s){
     if(!s) return NULL;
     size_t L = strlen(s);
     if(L && s[L-1] == '\n') return strndup(s, L-1);
+    
     return strdup(s);
 }
 
@@ -19,7 +16,7 @@ void historyAdd(const char *line){
     if(!line || !*line) return;
     int idx = hcount % HIST_MAX;
     free(hist[idx]);
-    hist[idx] = dup_trim_nl(line);   // store WITHOUT trailing '\n'
+    hist[idx] = dupTrimNl(line);   // store WITHOUT trailing '\n'
     hcount++;
     cursor = hcount;                 // reset cursor to end
 }

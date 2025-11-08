@@ -10,6 +10,11 @@
  * and printing recent history.
  */
 
+#include <string.h>
+#include <stdio.h>
+#include <ctype.h>
+#include <stdlib.h>
+
 #define HIST_MAX 1000  ///< Maximum number of history entries stored
 
 /**
