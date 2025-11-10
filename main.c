@@ -280,7 +280,12 @@ int main(){
       
       while(j < ncmds-1 && commands[j].sep && commands[j].sep[0] == PIPE_SEP) j++;
       int background = (commands[j].sep && commands[j].sep[0] == CONCURRENT_SEP);
+
+      // Termios might interfere if it tries to run the program. This disables it temporarily until the program ends.
+      termiosMode(0);
       runPipeline(commands, i, j, background);
+      termiosMode(1);
+
       i = j + 1;
     }
 
