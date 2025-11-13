@@ -41,7 +41,7 @@ static const char *findPrefix(const char *pre){
 char *historyExpandBang(const char *line){
     if(!line || line[0] != '!') return NULL;
 
-    if(strcmp(line, "!!") == 0){
+    if(strcmp(line, "!!\n") == 0 || strcmp(line, "!!") == 0){
         if(hcount == 0) return NULL;
         return strdup(hist[(hcount - 1) % HIST_MAX]); // already trimmed
     }
