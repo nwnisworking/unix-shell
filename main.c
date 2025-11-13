@@ -170,14 +170,19 @@ static void cleanup(){
   fflush(stdout);
 }
 
-int main(){
+int main(int argc, char* argv[]){
   char line[MAX_LINE_LENGTH];
   char *tokens[MAX_TOKENS]={0};
   Command commands[MAX_NUM_COMMANDS]={0};
   char prompt[64]="%";
   int skip_prompt = 0;
+  int is_server = 0;
 
-  termiosMode(1);
+  if(argc > 1 && strcmp(argv[1], "-server") == 0){
+    is_server = 1;
+  }
+
+  termiosMode(!is_server);
   installSignalHandlers();
   atexit(cleanup);
 
@@ -196,12 +201,24 @@ int main(){
       // Clear the line buffer for new input since it does not come from the history.
       clearLine(line);
 
-      printf("%s ", prompt);
+      if(is_server) printf("[PROMPT]");
+      else printf("%s ", prompt);
+
       fflush(stdout);
     }
 
     // Allows navigation through history using up and down arrows.
-    int hist_nav = readLine(line);
+    int hist_nav;
+
+    if(is_server){
+      hist_nav = 0;
+      if(!fgets(line, sizeof(line), stdin)){
+        exit(0);
+      }
+    }
+    else{
+      hist_nav = readLine(line);
+    }
 
     if(hist_nav == -1){
       const char *prev = historyPrev();
@@ -284,7 +301,7 @@ int main(){
       // Termios might interfere if it tries to run the program. This disables it temporarily until the program ends.
       termiosMode(0);
       runPipeline(commands, i, j, background);
-      termiosMode(1);
+      termiosMode(!is_server);
 
       i = j + 1;
     }
