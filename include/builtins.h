@@ -10,7 +10,7 @@
  * Sets the shell prompt to a new value.
  * 
  * @param prompt The current prompt string to be updated.
- * @param new_prompt The new prompt string to set. If NULL or empty, sets to
+ * @param new_prompt The new prompt string to set. If NULL or empty, sets to %
  */
 void builtinPrompt(char prompt[], const char* new_prompt);
 
